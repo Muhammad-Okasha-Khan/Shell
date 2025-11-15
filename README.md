@@ -18,9 +18,9 @@ A Custom Shell for learning the Basics of OS, exploring the potentials of C and 
 - Git & GitHub for version control
 
 ## Folder Structure
-src/ → source code
-include/ → header files
-tests/ → test programs/scripts
-docs/ → documentation
-assets/ → diagrams/screenshots
-Makefile → build instructions
+- src/ → source code
+- include/ → header files
+- tests/ → test programs/scripts
+- docs/ → documentation
+- assets/ → diagrams/screenshots
+- Makefile → build instructions
