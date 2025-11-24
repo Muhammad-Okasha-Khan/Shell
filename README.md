@@ -24,3 +24,6 @@ A Custom Shell for learning the Basics of OS, exploring the potentials of C and 
 - docs/ → documentation
 - assets/ → diagrams/screenshots
 - Makefile → build instructions
+## Running
+- gcc src/main -o main
+- ./main
