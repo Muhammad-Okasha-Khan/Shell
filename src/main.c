@@ -199,7 +199,7 @@ void read_line(char *buffer) {
             printf("\n");
             break;
         } 
-        else if (c == 127) { // backspace
+        else if (c == 127 || c == 8) { // backspace
             if (pos > 0) {   // cursor > start of input
                 if (pos <= 0) continue;  // safety check
 
