@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <pwd.h>
-
+#include <sys/stat.h>
 #define MAX_LINE 1024
 #define MAX_ARGS 64
 #define MAX_HISTORY 1000
@@ -20,6 +20,12 @@ struct termios orig_termios;
 // History storage
 char *history[MAX_HISTORY];
 int history_count = 0;
+
+int is_directory(const char *path) {
+    struct stat st;
+    if (stat(path, &st) != 0) return 0;  // path does not exist
+    return S_ISDIR(st.st_mode);
+}
 
 // Save original terminal and enable raw mode
 void enable_raw_mode() {
@@ -131,10 +137,36 @@ int shell_cd(char **args) {
 }
 
 // Execute external commands
+// Execute external commands with I/O redirection (combined)
 int shell_execute(char **args) {
     pid_t pid = fork();
     int status;
+
     if (pid == 0) {
+        int i = 0;
+        while (args[i] != NULL) {
+            if (strcmp(args[i], ">") == 0) {
+                args[i] = NULL;
+                FILE *f = fopen(args[i + 1], "w");
+                if (!f) { perror("shell"); exit(EXIT_FAILURE); }
+                dup2(fileno(f), STDOUT_FILENO);
+                fclose(f);
+            } else if (strcmp(args[i], ">>") == 0) {
+                args[i] = NULL;
+                FILE *f = fopen(args[i + 1], "a");
+                if (!f) { perror("shell"); exit(EXIT_FAILURE); }
+                dup2(fileno(f), STDOUT_FILENO);
+                fclose(f);
+            } else if (strcmp(args[i], "<") == 0) {
+                args[i] = NULL;
+                FILE *f = fopen(args[i + 1], "r");
+                if (!f) { perror("shell"); exit(EXIT_FAILURE); }
+                dup2(fileno(f), STDIN_FILENO);
+                fclose(f);
+            }
+            i++;
+        }
+
         if (execvp(args[0], args) == -1)
             perror("shell");
         exit(EXIT_FAILURE);
@@ -145,8 +177,10 @@ int shell_execute(char **args) {
             waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
+
     return 1;
 }
+
 
 // Read line with arrow keys history
 void read_line(char *buffer) {
@@ -274,8 +308,19 @@ int main() {
                 printf("\n");
             }
         }else {
-            status = shell_execute(args);
+            if (is_directory(args[0])) {
+                // Treat it as cd
+                char *cd_args[2];
+                cd_args[0] = "cd";
+                cd_args[1] = args[0];
+                cd_args[2] = NULL;
+                status = shell_cd(cd_args);
+            } else {
+                // Execute as normal command
+                status = shell_execute(args);
+            }
         }
+
     }
 
     disable_raw_mode();
