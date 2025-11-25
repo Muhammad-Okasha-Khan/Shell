@@ -24,6 +24,12 @@ A Custom Shell for learning the Basics of OS, exploring the potentials of C and 
 - docs/ → documentation
 - assets/ → diagrams/screenshots
 - Makefile → build instructions
-## Running
+
+## Run
+- In main.c at line 15 enter /home/[username]/myshell_history
 - gcc src/main -o main
 - ./main
+
+## Testing
+- cd tests
+- ./test_myshell.sh

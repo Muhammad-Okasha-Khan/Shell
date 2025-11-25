@@ -45,7 +45,7 @@ void print_prompt() {
     printf("\033[1;34m%s㉿%s",pw->pw_name,hostname);
     printf("\033[0;32m)-[");
     printf("\033[1;37m%s\033[0m",cwd);
-    printf("\033[0;32m)]\n└─");
+    printf("\033[0;32m]\n└─");
     printf("\033[1;34m$ ");
     printf("\033[0m");
 
@@ -76,12 +76,45 @@ void save_history(const char *line) {
 }
 
 // Parse input into args
-void parse_input(char *line, char **args) {
+void parse_input(char *input, char **args) {
     int i = 0;
-    args[i] = strtok(line, " \t\r\n\a");
-    while (args[i] != NULL && i < MAX_ARGS - 1) {
-        i++;
-        args[i] = strtok(NULL, " \t\r\n\a");
+    int pos = 0;
+    int len = strlen(input);
+
+    while (pos < len) {
+        while (pos < len && (input[pos] == ' ' || input[pos] == '\t'))
+            pos++;
+
+        if (pos >= len) break;
+
+        // Quoted argument
+        if (input[pos] == '"' || input[pos] == '\'') {
+            char quote = input[pos++];
+            int start = pos;
+
+            while (pos < len && input[pos] != quote)
+                pos++;
+
+            int size = pos - start;
+            args[i] = malloc(size + 1);
+            strncpy(args[i], input + start, size);
+            args[i][size] = '\0';
+            i++;
+
+            if (pos < len) pos++;  // skip closing quote
+        } 
+        
+        else {
+            int start = pos;
+            while (pos < len && input[pos] != ' ' && input[pos] != '\t')
+                pos++;
+
+            int size = pos - start;
+            args[i] = malloc(size + 1);
+            strncpy(args[i], input + start, size);
+            args[i][size] = '\0';
+            i++;
+        }
     }
     args[i] = NULL;
 }
@@ -117,59 +150,95 @@ int shell_execute(char **args) {
 
 // Read line with arrow keys history
 void read_line(char *buffer) {
-    int pos = 0;
+    int pos = 0;               // current cursor position
+    int len = 0;               // current line length
     int c;
     int history_index = history_count;
-    char temp[MAX_LINE];
+
+    buffer[0] = '\0';
 
     while (1) {
         c = getchar();
 
         if (c == '\n') {
-            buffer[pos] = '\0';
+            buffer[len] = '\0';
             printf("\n");
             break;
-        } else if (c == 127) { // backspace
+        } 
+        else if (c == 127) { // backspace
             if (pos > 0) {
+                for (int i = pos - 1; i < len - 1; i++) buffer[i] = buffer[i+1];
                 pos--;
-                printf("\b \b");
+                len--;
+                buffer[len] = '\0';
+                printf("\b"); // move left
+                printf("%s ", buffer + pos); // overwrite rest of line
+                for (int i = 0; i <= len - pos; i++) printf("\b"); // move cursor back
             }
-        } else if (c == 27) { // arrow keys
-            if ((c = getchar()) == 91) {
+        } 
+        else if (c == 27) { // escape sequence
+            if ((c = getchar()) == 91) { // CSI
                 c = getchar();
                 if (c == 'A') { // up arrow
                     if (history_index > 0) {
-                        // erase current line
-                        for (int i = 0; i < pos; i++) printf("\b \b");
+                        for (int i = 0; i < len; i++) printf("\b \b");
                         history_index--;
                         strcpy(buffer, history[history_index]);
-                        pos = strlen(buffer);
+                        len = strlen(buffer);
+                        pos = len;
                         printf("%s", buffer);
                     }
-                } else if (c == 'B') { // down arrow
+                } 
+                else if (c == 'B') { // down arrow
+                    for (int i = 0; i < len; i++) printf("\b \b");
                     if (history_index < history_count - 1) {
-                        for (int i = 0; i < pos; i++) printf("\b \b");
                         history_index++;
                         strcpy(buffer, history[history_index]);
-                        pos = strlen(buffer);
+                        len = strlen(buffer);
+                        pos = len;
                         printf("%s", buffer);
                     } else {
-                        for (int i = 0; i < pos; i++) printf("\b \b");
-                        pos = 0;
                         buffer[0] = '\0';
+                        len = 0;
+                        pos = 0;
+                    }
+                } 
+                else if (c == 'C') { // right arrow
+                    if (pos < len) {
+                        printf("\033[C");
+                        pos++;
+                    }
+                } 
+                else if (c == 'D') { // left arrow
+                    if (pos > 0) {
+                        printf("\033[D");
+                        pos--;
                     }
                 }
             }
-        } else {
-            buffer[pos++] = c;
-            putchar(c);
+        } 
+        else { // normal character
+            for (int i = len; i > pos; i--) buffer[i] = buffer[i-1]; // shift right
+            buffer[pos] = c;
+            printf("%c", c);
+            pos++;
+            len++;
+            buffer[len] = '\0';
+
+            // redraw rest of line if not at end
+            if (pos < len) {
+                printf("%s", buffer + pos);
+                for (int i = 0; i < len - pos; i++) printf("\b");
+            }
         }
     }
 }
 
+
 // Main shell loop
 int main() {
     char line[MAX_LINE];
+    char raw_line[MAX_LINE];
     char *args[MAX_ARGS];
     int status = 1;
 
@@ -184,6 +253,7 @@ int main() {
         if (strlen(line) == 0) continue;
 
         save_history(line);
+        strcpy(raw_line, line);
         parse_input(line, args);
 
         if (strcmp(args[0], "cd") == 0) {
@@ -193,7 +263,17 @@ int main() {
         } else if (strcmp(args[0], "history") == 0) {
             for (int i = 0; i < history_count; i++)
                 printf("%d %s\n", i + 1, history[i]);
-        } else {
+        } else if (strcmp(args[0], "echo") == 0) {
+            // Print everything that comes AFTER "echo" in original input
+            char *p = strstr(raw_line, "echo");
+            if (p) {
+                p += 4; // skip the word "echo"
+                while (*p == ' ') p++; // skip one space
+                printf("%s\n", p);
+            } else {
+                printf("\n");
+            }
+        }else {
             status = shell_execute(args);
         }
     }
