@@ -200,16 +200,23 @@ void read_line(char *buffer) {
             break;
         } 
         else if (c == 127) { // backspace
-            if (pos > 0) {
-                for (int i = pos - 1; i < len - 1; i++) buffer[i] = buffer[i+1];
+            if (pos > 0) {   // cursor > start of input
+                if (pos <= 0) continue;  // safety check
+
+                // Normal deletion
+                for (int i = pos - 1; i < len - 1; i++)
+                    buffer[i] = buffer[i + 1];
+
                 pos--;
                 len--;
                 buffer[len] = '\0';
-                printf("\b"); // move left
-                printf("%s ", buffer + pos); // overwrite rest of line
-                for (int i = 0; i <= len - pos; i++) printf("\b"); // move cursor back
+
+                printf("\b");                           // move left
+                printf("%s ", buffer + pos);            // overwrite rest
+                for (int i = 0; i <= len - pos; i++)    // move cursor back
+                    printf("\b");
             }
-        } 
+        }
         else if (c == 27) { // escape sequence
             if ((c = getchar()) == 91) { // CSI
                 c = getchar();
@@ -247,6 +254,26 @@ void read_line(char *buffer) {
                     if (pos > 0) {
                         printf("\033[D");
                         pos--;
+                    }
+                }
+                else if (c == 51) 
+                {   // '3'
+                    c = getchar();    // should read '~'
+                    if (c == 126) 
+                    {   // delete key
+                        if (pos < len) {
+                            // shift everything left starting at cursor
+                            for (int i = pos; i < len - 1; i++)
+                                buffer[i] = buffer[i + 1];
+
+                            len--;
+                            buffer[len] = '\0';
+
+                            // redraw line from cursor to end
+                            printf("%s ", buffer + pos); 
+                            for (int i = 0; i <= len - pos; i++) 
+                                printf("\b");
+                        }
                     }
                 }
             }
