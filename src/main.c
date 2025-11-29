@@ -307,6 +307,7 @@ int main() {
     load_history();
 
     while (status) {
+        printf("\n");
         print_prompt();
         fflush(stdout);
 
@@ -316,7 +317,7 @@ int main() {
         save_history(line);
         strcpy(raw_line, line);
         parse_input(line, args);
-
+        
         if (strcmp(args[0], "cd") == 0) {
             status = shell_cd(args);
         } else if (strcmp(args[0], "exit") == 0) {

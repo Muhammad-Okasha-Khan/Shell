@@ -26,7 +26,7 @@ A Custom Shell for learning the Basics of OS, exploring the potentials of C and 
 - Makefile → build instructions
 
 ## Run
-- In main.c at line 15 enter /home/[username]/myshell_history
+- In main at line number 15 do /home/[username]/myshell_history
 - gcc src/main -o main
 - ./main
 
