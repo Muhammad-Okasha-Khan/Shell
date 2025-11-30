@@ -55,3 +55,6 @@ dkms.conf
 *.dwo
 
 main
+myshell
+out.txt
+script.sh
