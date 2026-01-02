@@ -461,7 +461,7 @@ void launch_pipeline(char **segments, int segc, int background, const char *full
             setpgid(0, pgid);
 
             // If foreground, give terminal to pgid
-            if (!background) tcsetpgrp(STDIN_FILENO, pgid);
+            if (!background) tcsetpgrp(STDIN_FILENO, pgid); 
 
             // Restore default signals in child
             signal(SIGINT, SIG_DFL);
